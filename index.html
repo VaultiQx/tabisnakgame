@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabi Snake Game 💢</title>
+    <!-- Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for Sound Effects --><script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    
+    <style>
+        /* Custom styles for the game and background - White Background with Red Glow Theme */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff; /* White background base color */
+            min-height: 100vh;
+            display: flex;
+            align-items: center; 
+            justify-content: center; 
+            padding: 0.5rem; 
+            color: #1f2937; /* Dark text for contrast on white background */
+            /* Add a smooth transition for the mouse-following background effect */
+            transition: background 0.05s linear;
+        }
+        
+        /* Game elements need to stand out */
+        .game-container {
+            max-width: 500px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem; 
+            z-index: 10;
+        }
+        
+        #gameCanvas {
+            /* Shadow adjusted for white background visibility */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2), inset 0 0 10px rgba(220, 38, 38, 0.5); 
+            background-color: #f3f4f6; /* Light gray background for canvas area */
+            border-radius: 12px;
+            touch-action: none; 
+            cursor: pointer;
+            position: relative; 
+            /* Added 2px solid red border for clearer definition */
+            border: 2px solid #dc2626;
+        }
+        
+        .tabi-button {
+            transition: all 0.2s;
+            background-color: #dc2626; /* Red 600 */
+            box-shadow: 0 4px #991b1b; /* Darker Red Shadow */
+            color: white;
+        }
+
+        .tabi-button:active {
+            box-shadow: 0 0 #991b1b;
+            transform: translateY(4px);
+        }
+
+        .tabi-button:hover {
+            background-color: #b91c1c; /* Red 700 */
+            opacity: 0.9;
+        }
+
+        .game-status-box, .leaderboard-card {
+            background-color: #ffffff; /* White card background */
+            border: 2px solid #dc2626; /* Red Border */
+            padding: 1.25rem; 
+            border-radius: 12px;
+            text-align: center;
+            position: relative; 
+            color: #1f2937; /* Dark text */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Welcome Screen Animation */
+        #welcomeScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95); /* Light overlay */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+            z-index: 10;
+        }
+        #welcomeScreen.show {
+            opacity: 1;
+        }
+        #welcomeText {
+            color: #dc2626;
+            font-size: 3rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px #f87171;
+            animation: pulse 1s infinite alternate;
+        }
+        @keyframes pulse {
+            from { transform: scale(1); opacity: 0.8; }
+            to { transform: scale(1.05); opacity: 1; }
+        }
+        
+        /* Game Over Screen Styling */
+        #gameOverScreen {
+            position: absolute; 
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20; 
+            display: none; 
+        }
+        #gameOverScreen.flex {
+            display: flex;
+        }
+        #gameOverScreen > div {
+            background-color: #ffffff; /* White background for modal */
+            color: #1f2937; /* Dark text in modal */
+        }
+        
+        /* --- Background Floating Red Blobs Animation --- */
+        #backgroundParticles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0; /* Below the main content and canvas */
+        }
+        
+        .red-blob {
+            position: absolute;
+            /* Updated to darker red with more opacity */
+            background: rgba(185, 28, 28, 0.6); 
+            border-radius: 50%; /* Make it a circle */
+            filter: blur(60px); /* Slightly more blur for a softer glow */
+            animation: 
+                float-up 18s infinite ease-in-out alternate, /* Slower float */
+                fade-pulse 12s infinite ease-in-out; /* Slower fade */
+        }
+
+        #blob1 {
+            width: 180px; /* Slightly larger */
+            height: 180px;
+            top: 15%;
+            left: -8%;
+            animation-duration: 22s, 14s; 
+            background: rgba(220, 38, 38, 0.5); /* Different shade */
+        }
+
+        #blob2 {
+            width: 300px; /* Larger */
+            height: 300px;
+            bottom: 10%;
+            right: -15%;
+            animation-duration: 20s, 11s;
+            animation-delay: 2s;
+            background: rgba(185, 28, 28, 0.55);
+        }
+
+        #blob3 {
+            width: 120px;
+            height: 120px;
+            top: 60%;
+            right: 18%;
+            animation-duration: 15s, 8s;
+            animation-delay: 1s;
+            background: rgba(220, 38, 38, 0.6);
+        }
+
+
+        /* Keyframes for animation */
+        @keyframes float-up {
+            0% { transform: translateY(0) translateX(0) rotate(0deg); }
+            50% { transform: translateY(-70px) translateX(30px) rotate(8deg); } /* More movement */
+            100% { transform: translateY(0) translateX(0) rotate(0deg); }
+        }
+        
+        @keyframes fade-pulse {
+            0% { opacity: 0.9; } /* Start more opaque */
+            50% { opacity: 0.5; }
+            100% { opacity: 0.9; }
+        }
+
+        /* --- NEW: Mouse Following Snake Canvas --- */
+        #mouseSnakeCanvas {
+            position: fixed; /* Fixed relative to viewport */
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none; /* Allows clicks to pass through */
+            z-index: 5; /* Below game UI but above blobs */
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Floating Background Elements (Z-index 0) --><div id="backgroundParticles">
+        <div id="blob1" class="red-blob"></div>
+        <div id="blob2" class="red-blob"></div>
+        <div id="blob3" class="red-blob"></div>
+    </div>
+
+    <!-- NEW: Mouse Following Snake Canvas (Z-index 5) --><canvas id="mouseSnakeCanvas"></canvas>
+    
+    <!-- Main Game Container (Max width set to 500px in CSS now for centering) --><div class="game-container">
+        <!-- Game Area (Now full width) --><div class="w-full flex flex-col items-center">
+            <h1 class="text-3xl font-extrabold mb-3 text-red-600 text-shadow-lg">Tabi Snake Game 💢</h1>
+            
+            <!-- Game Canvas & Screens (HIDDEN INITIALLY) --><div id="canvasWrapper" class="relative w-full max-w-lg mb-3 rounded-xl hidden">
+                <canvas id="gameCanvas" width="400" height="400" class="w-full rounded-xl"></canvas>
+                
+                <!-- Welcome/Animation Overlay --><div id="welcomeScreen" class="hidden">
+                    <h2 id="welcomeText">Welcome!</h2>
+                </div>
+                
+                <!-- Game Over Modal (Loss) --><div id="gameOverScreen" class="hidden absolute inset-0 flex items-center justify-center bg-white bg-opacity-95 rounded-xl">
+                    <div class="p-6 bg-white border-4 border-red-600 rounded-xl text-center shadow-2xl">
+                        <h2 class="text-4xl font-extrabold text-red-600 mb-4">Game Over!</h2>
+                        <p class="text-2xl mb-6 text-gray-800">Your Score: <span id="finalScoreDisplay" class="text-red-600">0</span></p>
+                        <div class="flex flex-col space-y-3">
+                            <button class="tabi-button bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg" style="box-shadow: 0 4px #15803d;" onclick="restartGame()">
+                                Play Again
+                            </button>
+                            <a id="tweetButton" target="_blank" class="tabi-button bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg inline-block" style="box-shadow: 0 4px #1e40af;">
+                                Share on 𝕏
+                            </a>
+                            <button class="tabi-button bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg" style="box-shadow: 0 4px #374151;" onclick="cancelGame(true)">
+                                Go to Menu
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Main Menu Screen (Visible first) --><div id="mainMenu" class="game-status-box w-full max-w-lg">
+                <h2 class="text-2xl font-bold mb-6 text-red-600">Menu</h2>
+                
+                <!-- Start New Game Button -> show speed selection --><button class="tabi-button text-white font-bold py-3 px-6 rounded-xl text-xl w-full mb-4" onclick="showSpeedSelection()">
+                    Start New Game
+                </button>
+
+                <!-- UPDATED: Link now points to the user's provided X profile --><a href="https://x.com/VaultiQx" target="_blank" class="block tabi-button bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-xl text-xl w-full" style="box-shadow: 0 4px #374151;">
+                    My X Profile
+                </a>
+            </div>
+
+            <!-- Speed Selection Menu (Hidden initially) --><div id="speedSelectionMenu" class="game-status-box w-full max-w-lg hidden">
+                <h2 class="text-2xl font-bold mb-6 text-red-600">Select Speed Mode</h2>
+                <div class="space-y-3 mb-4">
+                    <button class="tabi-button bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl text-xl w-full" style="box-shadow: 0 4px #15803d;" onclick="selectMode(150)">
+                        Easy (Slow)
+                    </button>
+                    <button class="tabi-button text-white font-bold py-3 px-6 rounded-xl text-xl w-full" onclick="selectMode(100)">
+                        Medium (Medium)
+                    </button>
+                    <button class="tabi-button bg-red-800 hover:bg-red-900 text-white font-bold py-3 px-6 rounded-xl text-xl w-full" style="box-shadow: 0 4px #991b1b;" onclick="selectMode(50)">
+                        Fast (Fast)
+                    </button>
+                </div>
+                <button class="tabi-button bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl text-lg w-full" style="box-shadow: 0 4px #4b5563;" onclick="showMenu()">
+                    Back to Main Menu
+                </button>
+            </div>
+
+
+            <!-- Game Controls (Hidden initially, shown when game is active) --><div id="controlPanel" class="game-status-box w-full max-w-lg hidden">
+                <div class="flex justify-between items-center mb-3">
+                    <p class="text-xl font-bold">Score: <span id="scoreDisplay" class="text-red-600">0</span></p>
+                    <p class="text-xs text-gray-600" id="currentStatus">Ready to Run</p>
+                </div>
+                <div class="flex justify-between space-x-2">
+                    <!-- Start/Pause button logic updated --><button id="startPauseButton" class="tabi-button text-white font-bold py-2 px-4 rounded-xl text-lg flex-1" onclick="handleStartPause()">
+                        Start
+                    </button>
+                    <button class="tabi-button bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-xl text-lg flex-1" style="box-shadow: 0 4px #a16207;" onclick="pauseGame()">
+                        Pause
+                    </button>
+                    <button class="tabi-button bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-xl text-lg flex-1" style="box-shadow: 0 4px #374151;" onclick="cancelGame()">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile Controls (D-Pad style) - Now much more compact --><div id="mobileControls" class="md:hidden mt-3 w-full flex justify-center hidden">
+                <div class="w-64 max-w-full">
+                    <p class="text-center text-gray-600 mb-2 text-sm">Swipe or Use Buttons</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <!-- Row 1: Up --><div></div>
+                        <button class="w-full tabi-button bg-gray-700 text-white py-2 rounded-xl text-xl" ontouchstart="setDirection('up')">▲</button>
+                        <div></div>
+
+                        <!-- Row 2: Left/Center/Right --><button class="w-full tabi-button bg-gray-700 text-white py-2 rounded-xl text-xl" ontouchstart="setDirection('left')">◀</button>
+                        <div></div> <!-- Center space --><button class="w-full tabi-button bg-gray-700 text-white py-2 rounded-xl text-xl" ontouchstart="setDirection('right')">▶</button>
+
+                        <!-- Row 3: Down --><div></div>
+                        <button class="w-full tabi-button bg-gray-700 text-white py-2 rounded-xl text-xl" ontouchstart="setDirection('down')">▼</button>
+                        <div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Variables ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasWrapper = document.getElementById('canvasWrapper'); // Reference to the wrapper
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const currentStatus = document.getElementById('currentStatus');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+        const tweetButton = document.getElementById('tweetButton');
+        const startPauseButton = document.getElementById('startPauseButton');
+        const mainMenu = document.getElementById('mainMenu');
+        const speedSelectionMenu = document.getElementById('speedSelectionMenu'); // NEW DOM Reference
+        const controlPanel = document.getElementById('controlPanel');
+        const mobileControls = document.getElementById('mobileControls');
+        const welcomeScreen = document.getElementById('welcomeScreen');
+        // Removed: winScreen and finalWinScoreDisplay references
+
+
+        const GAME_SIZE = 20; // Number of cells wide/high
+        // Removed: MAX_SCORE constant
+        let TILE_SIZE = 20;  // Calculated size based on canvas width
+        let snake = [];
+        let food = {};
+        let dx = 0; // x velocity
+        let dy = 0; // y velocity
+        let score = 0;
+        let isGameOver = true;
+        let isPaused = true;
+        let isSoundOn = true;
+        let GAME_SPEED = 100; // milliseconds per game step (Default Medium)
+        let gameLoopInterval = null;
+
+
+        // --- Sound Effects Setup (Tone.js) ---
+        let gameOverSynth = new Tone.NoiseSynth({
+            "volume": -10,
+            "envelope": { "attack": 0.001, "decay": 0.5, "sustain": 0 }
+        }).toDestination();
+        
+        // Removed: winSynth setup
+
+        /** Plays a specific sound effect. */
+        function playSound(type) {
+            if (!isSoundOn) return;
+            try {
+                // Ensure audio context is started by user interaction
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+
+                switch (type) {
+                    case 'eat':
+                        // Use a fresh, temporary synth for quick, rapid triggers 
+                        const quickSynth = new Tone.MembraneSynth().toDestination();
+                        quickSynth.triggerAttackRelease("C5", "32n", Tone.now());
+                        setTimeout(() => { quickSynth.dispose(); }, 100);
+                        break;
+                    case 'gameover':
+                        gameOverSynth.triggerAttackRelease("4n");
+                        break;
+                    // Removed: 'win' case
+                }
+            } catch (e) {
+                console.error("Sound error, disabling sounds.", e);
+                isSoundOn = false;
+            }
+        }
+
+        // --- UI State Management ---
+
+        /** Shows the main menu and hides game elements. */
+        function showMenu() {
+            mainMenu.classList.remove('hidden');
+            speedSelectionMenu.classList.add('hidden'); 
+            controlPanel.classList.add('hidden');
+            mobileControls.classList.add('hidden');
+            // Hide the canvas wrapper completely when in the menu, and ensure game over screen is hidden
+            canvasWrapper.classList.add('hidden'); 
+            gameOverScreen.classList.add('hidden'); 
+            gameOverScreen.classList.remove('flex'); 
+        }
+        
+        /** Shows the speed selection menu. */
+        function showSpeedSelection() {
+            mainMenu.classList.add('hidden');
+            speedSelectionMenu.classList.remove('hidden');
+            // Hide all game-related UI elements when speed selection is visible
+            controlPanel.classList.add('hidden'); 
+            mobileControls.classList.add('hidden');
+            canvasWrapper.classList.add('hidden');
+        }
+
+        /** Shows game elements and hides the main menu. */
+        function showGameUI() {
+            mainMenu.classList.add('hidden');
+            speedSelectionMenu.classList.add('hidden'); 
+            controlPanel.classList.remove('hidden');
+            mobileControls.classList.remove('hidden');
+            // Show the canvas wrapper when the game UI is active
+            canvasWrapper.classList.remove('hidden'); 
+        }
+        
+        /** Sets the game speed and starts the welcome animation. */
+        function selectMode(speedMs) {
+            GAME_SPEED = speedMs;
+            speedSelectionMenu.classList.add('hidden'); 
+            showWelcomeAnimation();
+        }
+
+        /** Displays the Welcome animation overlay. */
+        function showWelcomeAnimation() {
+            // First, ensure the canvas is visible for the animation
+            canvasWrapper.classList.remove('hidden'); 
+            
+            welcomeScreen.classList.remove('hidden');
+            welcomeScreen.classList.add('show');
+            currentStatus.textContent = "Game Loading...";
+            
+            // Wait for animation to display, then start the game
+            setTimeout(() => {
+                welcomeScreen.classList.remove('show');
+                welcomeScreen.classList.add('hidden');
+                startGame();
+            }, 1000); // 1 second animation time
+        }
+        
+        /** Handles Start/Pause button logic. */
+        function handleStartPause() {
+            if (isGameOver) {
+                // If game is over (or cancelled), go back to speed selection screen
+                showSpeedSelection(); 
+            } else if (isPaused) {
+                resumeGame();
+            } else {
+                pauseGame();
+            }
+        }
+        
+        /** Pauses the game loop. */
+        function pauseGame() {
+            if (isGameOver || isPaused) return;
+            isPaused = true;
+            clearInterval(gameLoopInterval);
+            startPauseButton.textContent = 'Resume'; // Changed button text to Resume
+            currentStatus.textContent = 'Paused';
+            console.log("Game Paused");
+        }
+
+        /** Resumes the game loop. */
+        function resumeGame() {
+            if (!isPaused || isGameOver) return;
+            isPaused = false;
+            startPauseButton.textContent = 'Pause'; // Changed button text back to Pause
+            currentStatus.textContent = 'Running';
+            if (gameLoopInterval) clearInterval(gameLoopInterval);
+            // Use the globally set GAME_SPEED
+            gameLoopInterval = setInterval(gameLoop, GAME_SPEED); 
+            console.log("Game Resumed with speed:", GAME_SPEED);
+        }
+        
+        /** Cancels the current game and returns to the main menu. */
+        function cancelGame(fromGameOver = false) {
+            isGameOver = true;
+            isPaused = true;
+            clearInterval(gameLoopInterval);
+            showMenu(); // This hides the canvas wrapper and shows main menu
+            startPauseButton.textContent = 'Start';
+            currentStatus.textContent = 'Ready to Play';
+            console.log("Game Cancelled");
+        }
+
+
+        // --- Responsiveness Function ---
+        /** Resizes the canvas and recalculates TILE_SIZE based on container width. */
+        function resizeCanvas() {
+            // Find the width of the canvas wrapper element
+            const containerWidth = canvasWrapper.parentElement.clientWidth;
+            // The size should be the full available width, capped at 500px 
+            const size = Math.min(containerWidth, 500); 
+            
+            canvas.width = size;
+            canvas.height = size;
+            TILE_SIZE = canvas.width / GAME_SIZE;
+
+            // Redraw the game immediately after resize for smooth viewing
+            if (!isGameOver) {
+                drawGame();
+            }
+        }
+        // --- Core Game Functions ---
+
+        /** Sets up the game state and starts the loop. */
+        function startGame() {
+            // Ensure canvas size is correct before starting (though resize listener handles this too)
+            resizeCanvas(); 
+
+            // Initial state
+            snake = [{ x: 10, y: 10 }];
+            dx = 0; // Start stationary until first input
+            dy = 0;
+            score = 0;
+            isGameOver = false;
+            isPaused = true; // Start paused, waiting for first input
+            
+            scoreDisplay.textContent = score;
+            // Ensure game over screen is hidden when starting
+            gameOverScreen.classList.add('hidden'); 
+            gameOverScreen.classList.remove('flex'); 
+
+            spawnFood();
+            showGameUI();
+            
+            startPauseButton.textContent = 'Start'; // Set the initial state
+            currentStatus.textContent = 'Ready to Run';
+
+            // Initial draw
+            drawGame();
+        }
+
+        /** Restarts the game from the Game Over screen. */
+        function restartGame() {
+            // Logic: Play Again now takes you to the speed selection menu
+            gameOverScreen.classList.add('hidden'); 
+            gameOverScreen.classList.remove('flex'); 
+            showSpeedSelection();
+        }
+
+
+        /** Spawns food at a random position, not inside the snake. */
+        function spawnFood() {
+            let newFood;
+            do {
+                newFood = {
+                    x: Math.floor(Math.random() * GAME_SIZE),
+                    y: Math.floor(Math.random() * GAME_SIZE)
+                };
+            } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
+            food = newFood;
+        }
+
+        /** The main game loop: update, check collisions, draw. */
+        function gameLoop() {
+            if (isGameOver || isPaused) {
+                clearInterval(gameLoopInterval);
+                return;
+            }
+
+            // 1. Move the snake
+            const head = { x: snake[0].x + dx / TILE_SIZE, y: snake[0].y + dy / TILE_SIZE };
+
+            // 2. Check for collisions
+            if (checkCollision(head)) {
+                endGame();
+                return;
+            }
+
+            // Add the new head to the snake
+            snake.unshift(head);
+
+            // 3. Check for food
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                scoreDisplay.textContent = score;
+                playSound('eat');
+                
+                // Removed: Win condition check
+                
+                spawnFood(); // Spawn new food
+                // Snake does not pop the tail, making it grow
+            } else {
+                // Remove the tail if no food was eaten
+                snake.pop();
+            }
+
+            // 4. Redraw
+            drawGame();
+        }
+
+        /** Draws all elements on the canvas. */
+        function drawGame() {
+            // Clear the canvas
+            ctx.fillStyle = '#f3f4f6'; // Light gray background for canvas
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw food (now a bright red circle)
+            ctx.fillStyle = '#ef4444'; // Bright Red color for the food circle
+            const foodCenterX = food.x * TILE_SIZE + TILE_SIZE / 2;
+            const foodCenterY = food.y * TILE_SIZE + TILE_SIZE / 2;
+            const foodRadius = TILE_SIZE / 3; 
+            ctx.beginPath();
+            ctx.arc(foodCenterX, foodCenterY, foodRadius, 0, 2 * Math.PI);
+            ctx.fill();
+
+
+            // Draw snake: The entire snake (head and body) is now 💢
+            snake.forEach((segment) => {
+                const x = segment.x * TILE_SIZE;
+                const y = segment.y * TILE_SIZE;
+
+                // Draw the 💢 emoji for all segments (head and body)
+                ctx.save();
+                ctx.font = `${TILE_SIZE * 0.9}px sans-serif`; // Set size
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                // Draw the Tabi emoji
+                ctx.fillText('💢', x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+                ctx.restore();
+            });
+        }
+
+        /** Checks for border and self-collision. */
+        function checkCollision(head) {
+            // Border collision
+            const hitWall = head.x < 0 || head.x >= GAME_SIZE || head.y < 0 || head.y >= GAME_SIZE;
+
+            // Self collision (start checking from the 2nd segment onwards for tighter gameplay)
+            const hitSelf = snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y);
+
+            return hitWall || hitSelf;
+        }
+
+        /** Handles game over sequence (loss). */
+        function endGame() {
+            isGameOver = true;
+            isPaused = true;
+            clearInterval(gameLoopInterval);
+            playSound('gameover');
+            
+            finalScoreDisplay.textContent = score;
+            // Display game over screen on top of the canvas
+            gameOverScreen.classList.remove('hidden'); 
+            gameOverScreen.classList.add('flex');
+            currentStatus.textContent = 'Game Over!';
+
+            // Update Tweet Button URL with the user's requested post content
+            const gameLink = 'https://vaultiqx.github.io/tabisnakgame/'; 
+            const newTweetText = `💢Just scored ${score} points in @Tabichain Snake Game!\nThink you can beat me?\n\nPlay now💢: ${gameLink}\n\nBig thanks to the creator @VaultiQx for making this awesome game!💢`;
+            tweetButton.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(newTweetText)}`;
+        }
+
+        // Removed: winGame() function
+
+        // --- Input Handling ---
+
+        /** Sets the next movement direction, preventing immediate reversal. */
+        function setDirection(newDirection) {
+             // If paused, start the game loop on the first valid move
+            if (isPaused && !isGameOver) {
+                resumeGame();
+            }
+
+            // Only change direction if the new direction is not the opposite of the current one
+            if (newDirection === 'left' && dx === 0) { dx = -TILE_SIZE; dy = 0; }
+            else if (newDirection === 'up' && dy === 0) { dx = 0; dy = -TILE_SIZE; }
+            else if (newDirection === 'right' && dx === 0) { dx = TILE_SIZE; dy = 0; }
+            else if (newDirection === 'down' && dy === 0) { dx = 0; dy = TILE_SIZE; }
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            // If game is over, only Enter/Space is allowed to trigger handleStartPause
+            if (isGameOver && e.key !== 'Enter' && e.key !== ' ') {
+                 return;
+            }
+            
+            e.preventDefault(); 
+            switch (e.key) {
+                case 'ArrowLeft': case 'a': setDirection('left'); break;
+                case 'ArrowUp': case 'w': setDirection('up'); break;
+                case 'ArrowRight': case 'd': setDirection('right'); break;
+                case 'ArrowDown': case 's': setDirection('down'); break;
+                case 'Enter': case ' ': handleStartPause(); break; 
+                case 'p': pauseGame(); break;
+                case 'c': cancelGame(); break; 
+            }
+        });
+
+        // Touch/Swipe controls
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+
+            // If game over screen is visible, tapping outside a button should be ignored
+            if (gameOverScreen.classList.contains('flex')) {
+                return;
+            }
+            
+            // If the game is over and touch occurs on the canvas, it means the user wants to start a new game
+            if (isGameOver) {
+                showSpeedSelection();
+                return;
+            }
+
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            if (isGameOver) return;
+            
+            // If paused, resume the game on touch end
+            if (isPaused) {
+                resumeGame();
+            }
+
+            const touch = e.changedTouches[0];
+            const dx_touch = touch.clientX - touchStartX;
+            const dy_touch = touch.clientY - touchStartY;
+
+            const threshold = 10;
+
+            if (Math.abs(dx_touch) > Math.abs(dy_touch) && Math.abs(dx_touch) > threshold) {
+                // Horizontal swipe
+                setDirection(dx_touch > 0 ? 'right' : 'left');
+            } else if (Math.abs(dy_touch) > Math.abs(dx_touch) && Math.abs(dy_touch) > threshold) {
+                // Vertical swipe
+                setDirection(dy_touch > 0 ? 'down' : 'up');
+            }
+        });
+
+        // --- Mouse Follower Animation Logic ---
+        /** Sets the background to a radial gradient centered at the mouse/touch position. */
+        function updateBackgroundGlow(x, y) {
+            // Creates a radial gradient spotlight effect centered at (x, y)
+            // The gradient fades from a bright red (0.15 opacity) to white (0.9 opacity)
+            const gradient = `radial-gradient(circle 40vmax at ${x}px ${y}px, 
+                                rgba(255, 100, 100, 0.25) 0%, /* Brightest spot */
+                                rgba(220, 38, 38, 0.15) 15%, /* Red glow */
+                                rgba(255, 255, 255, 0.9) 75%)`; /* Fade back to white */
+            document.body.style.background = gradient;
+        }
+
+        // Mouse listener for glow effect
+        document.addEventListener('mousemove', (e) => {
+            updateBackgroundGlow(e.clientX, e.clientY);
+        });
+
+        // Touch listener for glow effect (for initial touch)
+        document.addEventListener('touchmove', (e) => {
+             if (e.touches.length > 0) {
+                 updateBackgroundGlow(e.touches[0].clientX, e.touches[0].clientY);
+             }
+        });
+        
+        // --- NEW: Mouse Following Snake Logic ---
+        const mouseSnakeCanvas = document.getElementById('mouseSnakeCanvas');
+        const mouseSnakeCtx = mouseSnakeCanvas.getContext('2d');
+        let mouseSnake = [];
+        const MOUSE_SNAKE_LENGTH = 15; // Number of '💢' segments
+        const MOUSE_SNAKE_SEGMENT_SIZE = 30; // Size of each '💢'
+        const MOUSE_SNAKE_DELAY = 10; // Delay between segments for a "trail" effect
+
+        function resizeMouseSnakeCanvas() {
+            mouseSnakeCanvas.width = window.innerWidth;
+            mouseSnakeCanvas.height = window.innerHeight;
+        }
+
+        /** Draws the mouse-following snake. */
+        function drawMouseSnake() {
+            mouseSnakeCtx.clearRect(0, 0, mouseSnakeCanvas.width, mouseSnakeCanvas.height);
+            
+            for (let i = 0; i < mouseSnake.length; i++) {
+                const segment = mouseSnake[i];
+                const alpha = 1 - (i / MOUSE_SNAKE_LENGTH); // Fade out older segments
+                if (alpha > 0) {
+                    mouseSnakeCtx.save();
+                    mouseSnakeCtx.globalAlpha = alpha;
+                    mouseSnakeCtx.font = `${MOUSE_SNAKE_SEGMENT_SIZE}px sans-serif`;
+                    mouseSnakeCtx.textAlign = 'center';
+                    mouseSnakeCtx.textBaseline = 'middle';
+                    mouseSnakeCtx.fillText('💢', segment.x, segment.y);
+                    mouseSnakeCtx.restore();
+                }
+            }
+        }
+
+        // Mouse move handler for the mouse snake
+        document.addEventListener('mousemove', (e) => {
+            // Add current mouse position
+            mouseSnake.unshift({ x: e.clientX, y: e.clientY });
+            // Keep snake to desired length
+            if (mouseSnake.length > MOUSE_SNAKE_LENGTH) {
+                mouseSnake.pop();
+            }
+        });
+
+        // Touch move handler for the mouse snake
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                mouseSnake.unshift({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+                if (mouseSnake.length > MOUSE_SNAKE_LENGTH) {
+                    mouseSnake.pop();
+                }
+            }
+        });
+
+        // Animation loop for the mouse snake
+        function animateMouseSnake() {
+            drawMouseSnake();
+            requestAnimationFrame(animateMouseSnake);
+        }
+
+        // --- Initialization ---
+        
+        window.onload = function() {
+            // 1. Initial resize: crucial for setting up TILE_SIZE on load
+            resizeCanvas(); 
+            resizeMouseSnakeCanvas(); // Resize mouse snake canvas too
+            // 2. Set an initial glow position in the center
+            updateBackgroundGlow(window.innerWidth / 2, window.innerHeight / 2);
+            // 3. Show main menu initially
+            showMenu();
+            // 4. Start mouse snake animation
+            animateMouseSnake();
+        }
+        
+        // 5. Add resize listener: crucial for smooth adaptation on window resize
+        window.addEventListener('resize', () => {
+             resizeCanvas();
+             resizeMouseSnakeCanvas(); // Resize mouse snake canvas too
+             // Recenter the glow on resize
+             updateBackgroundGlow(window.innerWidth / 2, window.innerHeight / 2);
+        });
+
+
+    </script>
+</body>
+</html>
